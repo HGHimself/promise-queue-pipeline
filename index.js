@@ -9,26 +9,21 @@ const Chainable = ( agent ) => {
   // looks like: Promise.resolve().then(c1 => c1.then(c2 => c2.then))
   const chain = ( agent ) => ( callback ) => {
     agent._queue = agent._queue.then( callback );
-    return agent._queue;
+    //return agent._queue;
   }
 
   const result = ( agent ) => () => {
-    console.log("getting results");
-    agent.chain(() => this.context);
-    return this;
+    agent.chain(() => agent.context);
+    return agent;
   }
 
-  //
   const convertFuncToChain = (agent, funcName) => {
     const funcHold = agent[funcName];
-    // reassign the function
-    agent[funcName] = outer => { // from invokation in chain
-      // add func to its promise chain
-      agent.chain( inner => { // from previous chain link
+    agent[funcName] = outer => {
+      agent.chain( inner => {
         if ( inner && inner.halt ) { return inner; }
         return funcHold.bind(agent)({inner, outer});
       });
-      // resolve to itself
       return agent;
     }
   }
@@ -42,12 +37,10 @@ const Chainable = ( agent ) => {
   agent._queue = Promise.resolve();
   agent.context = {counter: 0};
 
-  // turn every method on the prototype into a chain method
   getClassMethods(agent)
     .filter(func => func != 'constructor')
     .forEach(func => convertFuncToChain(agent, func));
 
-  console.log("Done setting up the agent.\n", agent);
   return agent;
 }
 
@@ -63,10 +56,11 @@ class Agent {
   useContext( context ) {
     this.context.counter++;
     console.log(this.context, context);
-    return this.context;
   }
 
+  // this is similar to usings some db call or something
   async asyncWait() {
+    this.context.counter++;
     await new Promise(resolve => setTimeout(resolve, 1000));
     console.log("waiting done!");
   }
@@ -74,51 +68,35 @@ class Agent {
 
 (async () => {
   {
-    // let res = await Chainable(new Agent())
-    //   .receiveParams({alpha: 1})
-    //   .receiveParams({beta: 2})
-    //   .receiveParams({gamma: 3})
-    //   .receiveParams({deltta: 4});
+    const chainableAgent = Chainable(new Agent())
+    const res = await chainableAgent
+      .receiveParams({alpha: 1})
+      .receiveParams({beta: 2})
+      .receiveParams({gamma: 3})
+      .receiveParams({delta: 4});
+    console.log('\nDONE!', res);
+  }
+
+  {
+    // const chainableAgent = Chainable(new Agent())
+    // const res = await chainableAgent
+    //   .useContext()
+    //   .useContext()
+    //   .useContext()
+    //   .useContext()
+    //   .useContext()
+    //   .useContext()
+    //   .result();
     // console.log('\nDONE!', res);
   }
 
   {
-    let res = await Chainable(new Agent())
-      .useContext()
-      .useContext()
-      .useContext()
-      .useContext()
-      .useContext()
-      .useContext()
-      .result();
-
-    console.log('\nDONE!', res);
-
+    // const chainableAgent = Chainable(new Agent())
+    // const res = await chainableAgent
+    //   .asyncWait()
+    //   .asyncWait()
+    //   .asyncWait()
+    //   .result();
+    // console.log('\nDONE!', res);
   }
-  // const res = await Chainable(new Agent())
-  //   .asyncWait()
-  //   .asyncWait()
-  //   .result()
-
-  // console.log('\n\nDONE!', res);
 })();
-/*
-executing
-{ inner: undefined, outer: { alpha: 0 } }
-
-executing
-{
-  inner: { inner: undefined, outer: { alpha: 0 } },
-  outer: { beta: 2, alpha: 0 }
-}
-
-executing
-{
-  inner: {
-    inner: { inner: undefined, outer: [Object] },
-    outer: { beta: 2, alpha: 0 }
-  },
-  outer: { gamma: 3, halt: 1, alpha: 0 },
-  halt: 1
-}
-*/
